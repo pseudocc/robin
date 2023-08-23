@@ -7,6 +7,8 @@ const Size = terminal.Terminal.Size;
 const Writer = std.fs.File.Writer;
 
 pub const Editor = struct {
+    const BufferedWriter = std.io.BufferedWriter(1024, Writer);
+
     const Reason = error{
         Quit,
         Abort,
@@ -14,13 +16,15 @@ pub const Editor = struct {
     };
 
     size: Size,
-    writer: Writer,
+    buffer: BufferedWriter,
 
     const Self = @This();
     pub fn init(output: Writer, size: Size) !Self {
+        var buffer = BufferedWriter{ .unbuffered_writer = output };
+
         var self = Self{
             .size = size,
-            .writer = output,
+            .buffer = buffer,
         };
 
         try self.clear_screen();
@@ -28,24 +32,27 @@ pub const Editor = struct {
     }
 
     pub fn key(self: *Self, byte: u8) !void {
+        var writer = self.buffer.writer();
         if (byte == 'q') {
             return Reason.Quit;
         } else if (std.ascii.isControl(byte)) {
-            try self.writer.print("{d}\r\n", .{byte});
+            try writer.print("{d}\r\n", .{byte});
         } else {
-            try self.writer.print("{d} ({c})\r\n", .{ byte, byte });
+            try writer.print("{d} ({c})\r\n", .{ byte, byte });
         }
     }
 
     fn clear_screen(self: *Self) !void {
-        try self.writer.print("{s}{s}", .{
+        var writer = self.buffer.writer();
+        try writer.print("{s}{s}", .{
             clear.screen(.both),
             cursor.to(0, 0),
         });
+        try self.buffer.flush();
     }
 
     pub fn render(self: *Self) !void {
-        _ = self;
+        try self.buffer.flush();
     }
 
     pub fn deinit(self: *Self) !void {
