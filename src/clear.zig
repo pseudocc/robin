@@ -13,7 +13,7 @@ pub const Scope = enum(u8) {
 };
 
 pub inline fn default(comptime s: Scope, comptime d: Direction) []const u8 {
-    return print("\x1b[{}{}", .{ @intFromEnum(d), @intFromEnum(s) });
+    return print("\x1b[{c}{c}", .{ @intFromEnum(d), @intFromEnum(s) });
 }
 
 pub inline fn screen(comptime d: Direction) []const u8 {
