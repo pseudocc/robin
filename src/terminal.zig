@@ -1,20 +1,20 @@
 const std = @import("std");
 const sys = std.os.system;
 
-pub const Size = struct {
-    width: u16,
-    height: u16,
-};
-
 pub const Terminal = struct {
     canonical: std.os.termios,
     raw: std.os.termios,
     fd: std.os.system.fd_t,
     enabled: bool = false,
 
+    const Reason = error{
+        TcgetattrFailed,
+        IoctlFailed,
+    };
+
     const Self = @This();
 
-    pub fn init(fd: std.os.system.fd_t) !Terminal {
+    pub fn init(fd: std.os.system.fd_t) !Self {
         // https://viewsourcecode.org/snaptoken/kilo/02.enteringRawMode.html
         var canonical = try std.os.tcgetattr(fd);
         var raw = canonical;
@@ -25,8 +25,7 @@ pub const Terminal = struct {
         raw.cflag |= (sys.CS8);
         raw.lflag &= ~(sys.ECHO | sys.ICANON | sys.IEXTEN | sys.ISIG);
 
-        // set blocking read
-        raw.cc[sys.V.MIN] = 1;
+        raw.cc[sys.V.MIN] = 0;
         raw.cc[sys.V.TIME] = 1;
 
         return Self{
@@ -39,10 +38,8 @@ pub const Terminal = struct {
     pub fn blocking(self: *Self, set: bool) !void {
         var raw = self.raw;
         if (set) {
-            raw.cc[sys.V.MIN] = 1;
             raw.cc[sys.V.TIME] = 1;
         } else {
-            raw.cc[sys.V.MIN] = 0;
             raw.cc[sys.V.TIME] = 0;
         }
         if (self.enabled) {
@@ -60,9 +57,20 @@ pub const Terminal = struct {
         self.enabled = false;
     }
 
-    pub fn size(self: *Self) !Size {
-        var result = Size{};
-        try std.c.ioctl(self.fd, sys.TIOCGWINSZ, @intFromEnum(&result));
-        return result;
+    pub fn size(self: *Self) error{IOCTL}!Size {
+        var sz: sys.winsize = undefined;
+        const exit = sys.ioctl(self.fd, sys.T.IOCGWINSZ, @intFromPtr(&sz));
+        if (exit != 0) {
+            return error.IOCTL;
+        }
+        return Size{
+            .width = sz.ws_col,
+            .height = sz.ws_row,
+        };
     }
+
+    pub const Size = struct {
+        width: u16,
+        height: u16,
+    };
 };

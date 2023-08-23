@@ -1,20 +1,18 @@
 const std = @import("std");
-const palette = @import("palette.zig");
 const terminal = @import("terminal.zig");
-const cursor = @import("cursor.zig");
+const editor = @import("editor.zig");
 
 const stdin = std.io.getStdIn();
 const stdout = std.io.getStdOut().writer();
 const stderr = std.io.getStdErr().writer();
 
 pub fn main() !void {
-    var bwriter = std.io.bufferedWriter(stdout);
-    const bstdout = bwriter.writer();
+    var t = try terminal.Terminal.init(stdin.handle);
+    try t.enable();
+    defer t.disable() catch unreachable;
 
-    var term = try terminal.Terminal.init(stdin.handle);
-
-    try term.enable();
-    defer term.disable() catch unreachable;
+    var e = try editor.Editor.init(stdout, try t.size());
+    defer e.deinit() catch unreachable;
 
     var buffer: [32]u8 = undefined;
     main_loop: while (true) {
@@ -22,17 +20,13 @@ pub fn main() !void {
         if (bytes_read == 0) {
             continue;
         }
+
         for (buffer[0..bytes_read]) |byte| {
-            if (byte == 'q') {
-                try stdout.print("Exiting...\r\n", .{});
+            e.key(byte) catch {
                 break :main_loop;
-            }
-            if (std.ascii.isControl(byte)) {
-                try bstdout.print("{d}\r\n", .{byte});
-            } else {
-                try bstdout.print("{d} ({c})\r\n", .{ byte, byte });
-            }
+            };
         }
-        try bwriter.flush();
+
+        try e.render();
     }
 }
