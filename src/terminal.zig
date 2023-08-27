@@ -5,7 +5,12 @@ pub const Terminal = struct {
     canonical: std.os.termios,
     raw: std.os.termios,
     fd: std.os.system.fd_t,
-    enabled: bool = false,
+    flags: u32,
+
+    pub const Toggles = enum(u8) {
+        RawMode = 0,
+        AltBuffer = 1,
+    };
 
     const Reason = error{
         TcgetattrFailed,
@@ -25,6 +30,7 @@ pub const Terminal = struct {
         raw.cflag |= (sys.CS8);
         raw.lflag &= ~(sys.ECHO | sys.ICANON | sys.IEXTEN | sys.ISIG);
 
+        // blocking read with timeout
         raw.cc[sys.V.MIN] = 0;
         raw.cc[sys.V.TIME] = 1;
 
@@ -32,29 +38,34 @@ pub const Terminal = struct {
             .canonical = canonical,
             .raw = raw,
             .fd = fd,
+            .flags = 0,
         };
     }
 
-    pub fn blocking(self: *Self, set: bool) !void {
-        var raw = self.raw;
-        if (set) {
-            raw.cc[sys.V.TIME] = 1;
-        } else {
-            raw.cc[sys.V.TIME] = 0;
-        }
-        if (self.enabled) {
-            try std.os.tcsetattr(self.fd, .FLUSH, raw);
-        }
+    pub fn is_enabled(self: *Self, comptime mode: Toggles) bool {
+        return (self.flags & @as(u32, 1 << @intFromEnum(mode))) != 0;
     }
 
-    pub fn enable(self: *Self) !void {
-        try std.os.tcsetattr(self.fd, .FLUSH, self.raw);
-        self.enabled = true;
+    pub fn enable(self: *Self, comptime mode: Toggles) !void {
+        if (self.is_enabled(mode)) {
+            return;
+        }
+        _ = switch (mode) {
+            .RawMode => try std.os.tcsetattr(self.fd, .FLUSH, self.raw),
+            .AltBuffer => try std.os.write(self.fd, "\x1b[?1049h"),
+        };
+        self.flags |= @as(u32, 1 << @intFromEnum(mode));
     }
 
-    pub fn disable(self: *Self) !void {
-        try std.os.tcsetattr(self.fd, .FLUSH, self.canonical);
-        self.enabled = false;
+    pub fn disable(self: *Self, comptime mode: Toggles) !void {
+        if (!self.is_enabled(mode)) {
+            return;
+        }
+        _ = switch (mode) {
+            .RawMode => try std.os.tcsetattr(self.fd, .FLUSH, self.canonical),
+            .AltBuffer => try std.os.write(self.fd, "\x1b[?1049l"),
+        };
+        self.flags &= ~@as(u32, 1 << @intFromEnum(mode));
     }
 
     pub fn size(self: *Self) error{IOCTL}!Size {

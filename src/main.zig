@@ -7,9 +7,15 @@ const stdout = std.io.getStdOut().writer();
 const stderr = std.io.getStdErr().writer();
 
 pub fn main() !void {
+    const modes = [_]terminal.Terminal.Toggles{
+        .RawMode,
+        .AltBuffer,
+    };
+
     var t = try terminal.Terminal.init(stdin.handle);
-    try t.enable();
-    defer t.disable() catch unreachable;
+    inline for (modes) |mode| {
+        try t.enable(mode);
+    }
 
     var e = try editor.Editor.init(stdout, try t.size());
     defer e.deinit() catch unreachable;
@@ -28,5 +34,9 @@ pub fn main() !void {
         }
 
         try e.render();
+    }
+
+    inline for (modes) |mode| {
+        try t.disable(mode);
     }
 }
