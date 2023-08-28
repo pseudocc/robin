@@ -1,25 +1,64 @@
 const std = @import("std");
 const sys = std.os.system;
 
+const XTerm256 = Terminal(.XTERM_256_COLOR);
+const XTerm = Terminal(.XTERM_COLOR);
+
+pub const Kind = enum(u8) {
+    XTERM_256_COLOR = 0,
+    XTERM_COLOR = 1,
+
+    const Self = @This();
+
+    pub fn get() !Self {
+        var term = std.os.getenv("TERM") orelse "";
+        if (std.mem.eql(u8, term, "xterm-256color")) {
+            return .XTERM_256_COLOR;
+        } else if (std.mem.eql(u8, term, "xterm-kitty")) {
+            return .XTERM_256_COLOR;
+        } else if (std.mem.eql(u8, term, "xterm-color")) {
+            return .XTERM_COLOR;
+        }
+
+        std.log.err("Unsupported terminal type: {s}\n", .{term});
+        return error.NotSupported;
+    }
+
+    pub fn enter_altbuf(self: Self) []const u8 {
+        return switch (self) {
+            .XTERM_256_COLOR => "\x1b[?1049h",
+            .XTERM_COLOR => "\x1b7\x1b[?47h",
+        };
+    }
+
+    pub fn leave_altbuf(self: Self) []const u8 {
+        return switch (self) {
+            .XTERM_256_COLOR => "\x1b[?1049l",
+            .XTERM_COLOR => "\x1b[2J\x1b[?47l\x1b8",
+        };
+    }
+};
+
+pub const Toggles = enum(u8) {
+    RawMode = 0,
+    AltBuffer = 1,
+};
+
+pub const Size = struct {
+    width: u16,
+    height: u16,
+};
+
 pub const Terminal = struct {
     canonical: std.os.termios,
     raw: std.os.termios,
     fd: std.os.system.fd_t,
     flags: u32,
-
-    pub const Toggles = enum(u8) {
-        RawMode = 0,
-        AltBuffer = 1,
-    };
-
-    const Reason = error{
-        TcgetattrFailed,
-        IoctlFailed,
-    };
+    kind: Kind,
 
     const Self = @This();
 
-    pub fn init(fd: std.os.system.fd_t) !Self {
+    pub fn init(kind: Kind, fd: std.os.system.fd_t) !Self {
         // https://viewsourcecode.org/snaptoken/kilo/02.enteringRawMode.html
         var canonical = try std.os.tcgetattr(fd);
         var raw = canonical;
@@ -39,6 +78,7 @@ pub const Terminal = struct {
             .raw = raw,
             .fd = fd,
             .flags = 0,
+            .kind = kind,
         };
     }
 
@@ -52,7 +92,7 @@ pub const Terminal = struct {
         }
         _ = switch (mode) {
             .RawMode => try std.os.tcsetattr(self.fd, .FLUSH, self.raw),
-            .AltBuffer => try std.os.write(self.fd, "\x1b[?1049h"),
+            .AltBuffer => try std.os.write(self.fd, self.kind.enter_altbuf()),
         };
         self.flags |= @as(u32, 1 << @intFromEnum(mode));
     }
@@ -63,12 +103,12 @@ pub const Terminal = struct {
         }
         _ = switch (mode) {
             .RawMode => try std.os.tcsetattr(self.fd, .FLUSH, self.canonical),
-            .AltBuffer => try std.os.write(self.fd, "\x1b[?1049l"),
+            .AltBuffer => try std.os.write(self.fd, self.kind.leave_altbuf()),
         };
         self.flags &= ~@as(u32, 1 << @intFromEnum(mode));
     }
 
-    pub fn size(self: *Self) error{IOCTL}!Size {
+    pub fn size(self: *Self) !Size {
         var sz: sys.winsize = undefined;
         const exit = sys.ioctl(self.fd, sys.T.IOCGWINSZ, @intFromPtr(&sz));
         if (exit != 0) {
@@ -79,9 +119,4 @@ pub const Terminal = struct {
             .height = sz.ws_row,
         };
     }
-
-    pub const Size = struct {
-        width: u16,
-        height: u16,
-    };
 };

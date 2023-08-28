@@ -3,7 +3,7 @@ const cursor = @import("cursor.zig");
 const clear = @import("clear.zig");
 const terminal = @import("terminal.zig");
 
-const Size = terminal.Terminal.Size;
+const Size = terminal.Size;
 const Writer = std.fs.File.Writer;
 
 pub const Editor = struct {

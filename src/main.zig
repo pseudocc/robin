@@ -7,12 +7,14 @@ const stdout = std.io.getStdOut().writer();
 const stderr = std.io.getStdErr().writer();
 
 pub fn main() !void {
-    const modes = [_]terminal.Terminal.Toggles{
+    const modes = [_]terminal.Toggles{
         .RawMode,
         .AltBuffer,
     };
 
-    var t = try terminal.Terminal.init(stdin.handle);
+    const kind = try terminal.Kind.get();
+    var t = try terminal.Terminal.init(kind, stdin.handle);
+
     inline for (modes) |mode| {
         try t.enable(mode);
     }
