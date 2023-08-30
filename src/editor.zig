@@ -21,6 +21,7 @@ pub const Editor = struct {
 
     size: Size,
     buffer: BufferedWriter,
+    needs_sync: bool = false,
 
     const Self = @This();
     pub fn init(output: Writer, size: Size) !Self {
@@ -64,8 +65,15 @@ pub const Editor = struct {
             try self.handle_unicode(codepoint);
         }
 
-        try self.render();
+        self.needs_sync = true;
         return i;
+    }
+
+    pub fn idle(self: *Self) !void {
+        if (self.needs_sync) {
+            self.needs_sync = false;
+            try self.render();
+        }
     }
 
     fn handle_ascii(self: *Self, byte: u8) !void {

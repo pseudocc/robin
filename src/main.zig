@@ -32,6 +32,7 @@ pub fn main() !void {
         const bytes_read = try stdin.read(buffer[offset..]);
         const end = offset + bytes_read;
         if (end == 0) {
+            try e.idle();
             continue;
         }
 
