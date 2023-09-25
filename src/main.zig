@@ -38,6 +38,7 @@ pub fn main() !void {
 
     var args = Arguments.init(allocator, NAME, VERSION);
     try args.parse();
+    defer args.deinit();
 
     const kind = try terminal.Kind.get();
     var t = try terminal.Terminal.init(kind, stdin.handle);
