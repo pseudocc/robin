@@ -4,7 +4,7 @@ const cursor = @import("cursor.zig");
 const clear = @import("clear.zig");
 const terminal = @import("terminal.zig");
 
-const Size = terminal.Size;
+const Size = @import("views/base.zig").Size;
 const Writer = std.fs.File.Writer;
 
 const DEBUG = builtin.mode == .Debug;
@@ -33,6 +33,13 @@ pub const Editor = struct {
         };
 
         try self.clear_screen();
+
+        if (DEBUG) {
+            var writer = self.buffer.writer();
+            try writer.print("size: {d}x{d}\r\n", .{ size.width, size.height });
+            try self.buffer.flush();
+        }
+
         return self;
     }
 

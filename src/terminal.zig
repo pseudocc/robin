@@ -1,6 +1,8 @@
 const std = @import("std");
 const sys = std.os.system;
 
+const Size = @import("views/base.zig").Size;
+
 const XTerm256 = Terminal(.XTERM_256_COLOR);
 const XTerm = Terminal(.XTERM_COLOR);
 
@@ -42,11 +44,6 @@ pub const Kind = enum(u8) {
 pub const Toggles = enum(u8) {
     RawMode = 0,
     AltBuffer = 1,
-};
-
-pub const Size = struct {
-    width: u16,
-    height: u16,
 };
 
 pub const Terminal = struct {
