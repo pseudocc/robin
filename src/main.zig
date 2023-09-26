@@ -47,8 +47,12 @@ pub fn main() !void {
         try t.enable(mode);
     }
 
-    var e = try editor.Editor.init(stdout, try t.size());
+    var e = try editor.Editor.init(allocator, stdout, try t.size());
     defer e.deinit() catch unreachable;
+
+    // test only
+    try e.views.append(.{ .text = &e.text_file });
+    try e.views.append(.{ .bar = &e.robin_bar });
 
     var buffer: [BUFSIZ]u8 = undefined;
     var offset: usize = 0;
