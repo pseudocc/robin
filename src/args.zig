@@ -186,6 +186,7 @@ pub const Arguments = struct {
             .metavar = "FILE..",
             .default = &.{},
             .ref = &self.files,
+            .allocator = allocator,
         };
         var commands = Parameter([][]const u8){
             .long_name = "",
@@ -204,6 +205,7 @@ pub const Arguments = struct {
         };
 
         const args = try std.process.argsAlloc(allocator);
+        errdefer self.deinit();
 
         var i: usize = 1;
         while (i < args.len) {
