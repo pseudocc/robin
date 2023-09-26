@@ -24,6 +24,7 @@ pub const ViewBase = struct {
     cursor: Position,
     zindex: u32,
     records: std.ArrayList(RenderRecord),
+    focused: bool = false,
 
     const Self = @This();
 
@@ -36,6 +37,9 @@ pub const ViewBase = struct {
                 _ = try writer.write(cursor.to(true_x, true_y));
             }
             _ = try writer.write(record.sequence);
+            if (self.focused) {
+                _ = try writer.write(cursor.save);
+            }
         }
         self.records.clearRetainingCapacity();
     }

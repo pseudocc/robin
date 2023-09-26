@@ -68,6 +68,7 @@ pub const Editor = struct {
                     .cursor = .{ .x = 0, .y = 0 },
                     .zindex = 0,
                     .records = ArrayList(view.RenderRecord).init(allocator),
+                    .focused = true,
                 },
             },
         };
@@ -156,6 +157,7 @@ pub const Editor = struct {
         for (self.views.items) |v| {
             try @constCast(&v).render(&writer);
         }
+        _ = try writer.write(cursor.restore);
         try self.buffer.flush();
         _ = self.arena.reset(.{ .retain_with_limit = 8 * 1024 * 1024 });
     }
