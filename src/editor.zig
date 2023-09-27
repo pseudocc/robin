@@ -102,7 +102,11 @@ pub const Editor = struct {
             try self.handle_unicode(codepoint);
         }
 
-        self.needs_sync = true;
+        if (data.len < 16) {
+            try self.render();
+        } else {
+            self.needs_sync = true;
+        }
         return i;
     }
 
