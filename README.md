@@ -3,5 +3,7 @@
 ## What is Robin?
 
 Robin is one of my side projects which will only support Linux,
-Robin is a Vim-like text editor fully written in [zig](https://github.com/ziglang/zig).
+Robin is a Vim-like editor fully written in [zig](https://github.com/ziglang/zig).
 Currently Robin is still working in process.
+
+## Roadmaps
